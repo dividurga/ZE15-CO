@@ -1,0 +1,124 @@
+
+//-------------------Sketch Description---------------------------------------------------------------------------------------------------------
+
+
+/* This sketch demonstrates the use of ZE15-CO Carbon Monoxide Module UART. In this mode a request for UART data
+ * must first be transmitted to the module. The module responds by transmitting back UART data which then must be recovered. 
+ * In this example mode 2 UART data is requested at 3 second intervals.
+ * 
+ * Created by Divija 17 June,2024, based off ZE07_CO library by HarvTech: https://github.com/HarvTech/ZE07_CO_UART_Library
+ * 
+ * Most of the other sensors in the ZEXX CO series by Winsen including ZE07-CO use a communication protocol wherein
+ * an instruction must be sent to enter QnA or initiative upload mode. ZE15 automatically enters
+ * QnA mode when the sensor is pinged with a question. 
+ * 
+*/
+//-------------------Declarations-------------------------------------------------------------------------------------
+
+#include <ZE15_CO.h>
+#include <SoftwareSerial.h>
+
+//Software serial pins used for board in use.
+#define Softserial_RX_pin D7
+#define Softserial_TX_Pin D6
+
+//Option to define pin as a test point for observing the read_flag variable waveform on an oscilloscope.
+#define read_flag_Pin D1
+
+//Create a Software Serial Port.
+SoftwareSerial COSerial(Softserial_RX_pin, Softserial_TX_Pin ); 
+
+//Refer the Software Serial port to the ZE15_CO library.
+ZE15_CO ZE15_CO(&COSerial);
+
+//Reference use of a HardwareSerial port, i.e.use of Hardware Serial2.
+//ZE15_CO ZE15_CO(&Serial2);
+
+
+//-------------------Global Variables-----------------------------------------------------------------------------------
+
+unsigned long previousMillis = 0; 
+unsigned long currentMillis;
+
+float concentration = 0; //CO concentration value in ppm.
+bool read_flag = false; //Toggles when UART data is received
+bool last_read_flag;
+
+//---------------------Setup----------------------------------------------------------------------------------------------
+void setup() {
+ 
+  Serial.begin(9600);
+  delay(1000);
+  COSerial.begin(9600);
+  delay(1000);
+  //LED pin to be used for indicating UART data reception. 
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(read_flag_Pin, OUTPUT);
+  
+}
+//---------------------Main Loop-----------------------------------------------------------------------------------
+void loop() {
+
+ //Request UART data at 2 second intervals.  
+  Request_UART_data(2000);  
+   
+// update incoming UART data
+  ZE15_CO.update_data(concentration, read_flag);
+  
+  //Toggle the state of LED_Pin and read_flag_ Pin when UART data has been recovered
+   Show_dataready();
+   
+  //Print updated concentration level.
+   Print_Concentration();
+       
+
+//--------------------End of Main Loop---------------------------------------------------------------------------------
+
+}
+
+//--------------------My Functions-------------------------------------------------------------------------------------
+
+void Request_UART_data(int interval) 
+ {
+    currentMillis = millis();
+    if (currentMillis - previousMillis >= interval) 
+    {
+    previousMillis = currentMillis;
+    ZE15_CO.Request_CO_data(); 
+   }
+ }
+
+void Show_dataready()
+{
+ if(read_flag) 
+  {
+    digitalWrite(read_flag_Pin, HIGH);
+    digitalWrite(LED_BUILTIN, LOW);
+  }
+  else 
+  {
+    digitalWrite(read_flag_Pin, LOW);
+    digitalWrite(LED_BUILTIN, HIGH);
+  }  
+}
+
+void Print_Concentration()
+{
+  if(read_flag != last_read_flag)
+   {
+     last_read_flag = read_flag;
+     
+   //Print data
+    Serial.println("UARTI/O Concentration Level:"); 
+    Serial.print(concentration, 1);
+    Serial.println(" ppm CO");   
+    Serial.println("--------------------------------");
+    Serial.println("");    
+   } 
+}
+
+
+
+
+
+//---------------End of Sketch------------------------------------------------------------------------------------------------
